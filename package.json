@@ -1,6 +1,6 @@
 {
   "name": "vrsn",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Opinionated application version management across languages",
   "main": "application.js",
   "dependencies": {
@@ -30,5 +30,8 @@
   "bugs": {
     "url": "https://github.com/normanjoyner/vrsn/issues"
   },
-  "homepage": "https://github.com/normanjoyner/vrsn"
+  "homepage": "https://github.com/normanjoyner/vrsn",
+  "bin": {
+    "vrsn": "./application.js"
+  }
 }
