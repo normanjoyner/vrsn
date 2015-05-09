@@ -105,8 +105,46 @@ Node.prototype.restore_version = function(fn){
     });
 }
 
-Node.prototype.post_update = function(){
+Node.prototype.post_update = function(fn){
+    var self = this;
+    var messages = [];
 
+    if(this.configuration.shrinkwrap){
+        var filename = [process.cwd(), "npm-shrinkwrap.json"].join("/");
+        fs.readFile(filename, function(err, contents){
+            if(err)
+                return fn(err);
+
+            try{
+                contents = JSON.parse(contents);
+            }
+            catch(e){
+                return fn(e);
+            }
+
+            contents.version = self.version.new;
+
+            if(_.isNull(contents.version))
+                return fn(new Error("Invalid version!"));
+
+            fs.writeFile(filename, JSON.stringify(contents, null, 2), function(err){
+                if(err)
+                    return fn(err);
+                else
+                    messages.push("npm-shrinkwrap.json updated!");
+            });
+        });
+    }
+
+    return fn(null, messages);
+}
+
+Node.prototype.post_commit = function(fn){
+    return fn(null, []);
+}
+
+Node.prototype.post_tag = function(fn){
+    return fn(null, []);
 }
 
 module.exports = Node;

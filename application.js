@@ -1,6 +1,7 @@
 var _ = require("lodash");
 var git = require("nodegit");
 var nomnom = require("nomnom");
+var async = require("async");
 var pkg = require([__dirname, "package"].join("/"));
 var utils = require([__dirname, "lib", "utils"].join("/"));
 var logger = require([__dirname, "lib", "logger"].join("/"));
@@ -49,31 +50,84 @@ utils.detect_language(function(language){
         })
     }
 
-    language.update_version(function(err){
+    async.series({
+        update_version: function(fn){
+            language.update_version(fn);
+        },
+
+        post_update: function(fn){
+            language.post_update(function(err, messages){
+                if(err)
+                    return fn(err);
+                else{
+                    _.each(messages, function(message){
+                        logger.info(message);
+                    });
+                    return fn();
+                }
+            });
+        },
+
+        commit: function(fn){
+            utils.git.commit(language.version.new, function(err){
+                if(err)
+                    return fn(err);
+                else{
+                    logger.info("Committed changes!");
+                    return fn();
+                }
+            });
+        },
+
+        post_commit: function(fn){
+            language.post_commit(function(err, messages){
+                if(err)
+                    return fn(err);
+                else{
+                    _.each(messages, function(message){
+                        logger.info(message);
+                    });
+                    return fn();
+                }
+            });
+        },
+
+        tag: function(fn){
+            if(options.tag){
+                utils.git.tag(language.version.new, function(err){
+                    if(err)
+                        return fn(err);
+                    else{
+                        logger.info(["Created git tag", language.version.new].join(" "));
+                        return fn();
+                    }
+                });
+            }
+            else{
+                return fn();
+            }
+        },
+
+        post_tag: function(fn){
+            language.post_tag(function(err, messages){
+                if(err)
+                    return fn(err);
+                else{
+                    _.each(messages, function(message){
+                        logger.info(message);
+                    });
+                    return fn();
+                }
+            });
+            return fn();
+        }
+    }, function(err){
         if(err){
-            logger.error(err.message);
-            logger.error(["Failed to update to version", language.version.new].join(" "));
+            throw err;
             process.exit(1);
         }
 
-        utils.git.commit(language.version.new, function(err){
-            if(err)
-                on_error(err);
-            else{
-                logger.info("Committed changes!");
-                if(options.tag){
-                    utils.git.tag(language.version.new, function(err){
-                        if(err)
-                            on_error(err);
-                        else{
-                            logger.info(["Created git tag", language.version.new].join(" "));
-                            logger.info(["Successfully updated to version", language.version.new].join(" "));
-                        }
-                    });
-                }
-                else
-                    logger.info(["Successfully updated to version", language.version.new].join(" "));
-            }
-        });
+        logger.info(["Successfully updated to version", language.version.new].join(" "));
     });
+
 });
