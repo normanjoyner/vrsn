@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 var _ = require("lodash");
 var git = require("gift");
 var nomnom = require("nomnom");
