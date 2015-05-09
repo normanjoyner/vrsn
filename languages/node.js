@@ -1,6 +1,8 @@
 var _ = require("lodash");
 var fs = require("fs");
 var semver = require("semver");
+var npm = require("npm");
+var async = require("async");
 
 function Node(){
     this.file = "package.json";
@@ -98,8 +100,23 @@ Node.prototype.restore_version = function(fn){
             fs.writeFile(filename, JSON.stringify(contents, null, 2), function(err){
                 if(err)
                     return fn(err);
-                else
-                    return fn();
+                else{
+                    if(self.configuration.shrinkwrap){
+                        npm.load({}, function(err){
+                            if(err)
+                                return fn(err);
+
+                            npm.commands.shrinkwrap([], true, function(err){
+                                if(err)
+                                    return fn(err);
+                                else
+                                    return fn();
+                            });
+                        });
+                    }
+                    else
+                        return fn();
+                }
             });
         });
     });
@@ -109,34 +126,29 @@ Node.prototype.post_update = function(fn){
     var self = this;
     var messages = [];
 
-    if(this.configuration.shrinkwrap){
-        var filename = [process.cwd(), "npm-shrinkwrap.json"].join("/");
-        fs.readFile(filename, function(err, contents){
-            if(err)
-                return fn(err);
+    async.parallel({
+        shrinkwrap: function(fn){
+            if(self.configuration.shrinkwrap){
+                npm.load({}, function(err){
+                    if(err)
+                        return fn(err);
 
-            try{
-                contents = JSON.parse(contents);
+                    npm.commands.shrinkwrap([], true, function(err){
+                        if(err)
+                            return fn(err);
+                        else{
+                            messages.push("npm-shrinkwrap.json updated!");
+                            return fn();
+                        }
+                    });
+                });
             }
-            catch(e){
-                return fn(e);
-            }
-
-            contents.version = self.version.new;
-
-            if(_.isNull(contents.version))
-                return fn(new Error("Invalid version!"));
-
-            fs.writeFile(filename, JSON.stringify(contents, null, 2), function(err){
-                if(err)
-                    return fn(err);
-                else
-                    messages.push("npm-shrinkwrap.json updated!");
-            });
-        });
-    }
-
-    return fn(null, messages);
+            else
+                return fn();
+        }
+    }, function(err){
+        return fn(err, messages);
+    });
 }
 
 Node.prototype.post_commit = function(fn){
@@ -144,7 +156,44 @@ Node.prototype.post_commit = function(fn){
 }
 
 Node.prototype.post_tag = function(fn){
-    return fn(null, []);
+    var self = this;
+    var messages = [];
+    var filename = [process.cwd(), this.file].join("/");
+
+    async.parallel({
+        publish: function(fn){
+            if(self.configuration.publish){
+                npm.load({}, function(err){
+                    if(err)
+                        return fn(err);
+
+                    fs.readFile(filename, function(err, contents){
+                        if(err)
+                            return fn(err);
+
+                        try{
+                            contents = JSON.parse(contents);
+                            npm.commands.publish([], true, function(err){
+                                if(err)
+                                    return fn(err);
+                                else{
+                                    messages.push(["Successully published", contents.name, "to npm!"].join(" "));
+                                    return fn();
+                                }
+                            });
+                        }
+                        catch(e){
+                            return fn(e);
+                        }
+                    });
+                });
+            }
+            else
+                return fn();
+        }
+    }, function(err){
+        return fn(err, messages);
+    });
 }
 
 module.exports = Node;

@@ -1,5 +1,5 @@
 var _ = require("lodash");
-var git = require("nodegit");
+var git = require("gift");
 var nomnom = require("nomnom");
 var async = require("async");
 var pkg = require([__dirname, "package"].join("/"));
@@ -37,22 +37,17 @@ utils.detect_language(function(language){
 
     utils.git.initialize();
 
-    var on_error = function(err){
-        logger.error(err.message);
-        language.restore_version(function(err){
-            if(err)
-                logger.error(["Error rolling back to version", language.version.original].join(" "));
-            else
-                logger.warn(["Successfully rolled back to version", language.version.original].join(" "));
-
-            logger.error(["Failed to update to version", language.version.new].join(" "));
-            process.exit(1);
-        })
-    }
-
     async.series({
         update_version: function(fn){
-            language.update_version(fn);
+            language.update_version(function(err){
+                if(err)
+                    return fn(err);
+                else{
+                    logger.info(["Updated to version", language.version.new].join(" "));
+                    return fn();
+                }
+
+            });
         },
 
         post_update: function(fn){
@@ -119,15 +114,24 @@ utils.detect_language(function(language){
                     return fn();
                 }
             });
-            return fn();
         }
     }, function(err){
         if(err){
-            throw err;
-            process.exit(1);
-        }
+            logger.error(err.message);
 
-        logger.info(["Successfully updated to version", language.version.new].join(" "));
+            language.restore_version(function(err){
+                if(err)
+                    logger.error(["Error rolling back to version", language.version.original].join(" "));
+                else
+                    logger.warn(["Successfully rolled back to version", language.version.original].join(" "));
+
+                logger.error(["Failed to update to version", language.version.new].join(" "));
+                process.exit(1);
+            });
+        }
+        else{
+            logger.info(["Successfully updated to version", language.version.new].join(" "));
+        }
     });
 
 });

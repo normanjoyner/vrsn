@@ -1,6 +1,6 @@
 {
   "name": "vrsn",
-  "version": "1.0.15",
+  "version": "0.1.0",
   "description": "Opinionated application version management across languages",
   "main": "application.js",
   "dependencies": {
@@ -8,6 +8,7 @@
     "gift": "^0.6.0",
     "lodash": "^3.7.0",
     "nomnom": "^1.8.1",
+    "npm": "^2.9.1",
     "semver": "^4.3.3",
     "winston": "^1.0.0"
   },
