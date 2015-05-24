@@ -120,12 +120,27 @@ utils.detect_language(function(language){
         if(err){
             logger.error(err.message);
 
-            language.restore_version(function(err){
-                if(err)
-                    logger.error(["Error rolling back to version", language.version.original].join(" "));
-                else
-                    logger.warn(["Successfully rolled back to version", language.version.original].join(" "));
+            async.series([
+                function(fn){
+                    utils.git.delete_tag(language.version.new, function(err){
+                        if(_.isNull(err))
+                            logger.warn(["Successfully deleted git tag", language.version.new].join(" "));
 
+                        return fn();
+                    });
+                },
+
+                function(fn){
+                    language.restore_version(function(err){
+                        if(err)
+                            logger.error(["Error rolling back to version", language.version.original].join(" "));
+                        else
+                            logger.warn(["Successfully rolled back to version", language.version.original].join(" "));
+
+                        return fn();
+                    });
+                }
+            ], function(){
                 logger.error(["Failed to update to version", language.version.new].join(" "));
                 process.exit(1);
             });

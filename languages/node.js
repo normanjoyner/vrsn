@@ -3,6 +3,7 @@ var fs = require("fs");
 var semver = require("semver");
 var npm = require("npm");
 var async = require("async");
+var common = require([__dirname, "..", "lib", "common"].join("/"));
 
 function Node(){
     this.file = "package.json";
@@ -20,6 +21,8 @@ function Node(){
             default: true
         }
     }
+
+    _.merge(this.options, common.options);
 }
 
 Node.prototype.exists = function(fn){
@@ -190,6 +193,19 @@ Node.prototype.post_tag = function(fn){
             }
             else
                 return fn();
+        },
+
+        docker: function(fn){
+            var options = _.clone(self.configuration);
+            options.version = self.version;
+            common.functions.docker(options, function(err){
+                if(err)
+                    return fn(err);
+                else{
+                    messages.push(["Successully pushed", [[options["docker-org-name"], _.last(process.cwd().split("/"))].join("/"), options.version.new].join(":"), "to Dockerhub!"].join(" "));
+                    return fn();
+                }
+            });
         }
     }, function(err){
         return fn(err, messages);
