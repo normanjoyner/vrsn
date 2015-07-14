@@ -1,6 +1,6 @@
 {
   "name": "vrsn",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Opinionated application version management across languages",
   "main": "application.js",
   "dependencies": {
